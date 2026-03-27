@@ -18,10 +18,10 @@
 ## 2. 기술 스택
 
 - Java 21
-- Spring Boot 3.4.x
+- Spring Boot 4.0.5
 - Spring Data JPA
 - MySQL 8.0
-- Springdoc OpenAPI (Swagger)
+- Springdoc OpenAPI 3.0.0 (Swagger)
 - Docker Compose
 - JUnit 5 + H2 (테스트)
 
