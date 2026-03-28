@@ -17,10 +17,8 @@ public class FakeProblemStatisticRepository implements ProblemStatisticRepositor
         return Optional.ofNullable(store.get(problemId));
     }
 
-    @Override
-    public ProblemStatistic save(ProblemStatistic statistic) {
+    public void save(ProblemStatistic statistic) {
         store.put(statistic.getProblemId(), statistic);
-        return statistic;
     }
 
     @Override

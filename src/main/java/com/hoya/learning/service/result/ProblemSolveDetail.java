@@ -6,6 +6,7 @@ import com.hoya.learning.domain.ProblemAnswer;
 import java.util.List;
 
 public record ProblemSolveDetail(
+        Long problemId,
         AnswerStatus answerStatus,
         String explanation,
         ProblemAnswer answer,

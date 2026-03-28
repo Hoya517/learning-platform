@@ -22,20 +22,13 @@ public class ProblemStatisticRepositoryImpl implements ProblemStatisticRepositor
     }
 
     @Override
-    public ProblemStatistic save(ProblemStatistic statistic) {
-        ProblemStatisticJpaEntity entity = statisticJpaRepository
-                .findByProblemId(statistic.getProblemId())
-                .orElse(new ProblemStatisticJpaEntity(statistic.getProblemId()));
-        entity.sync(statistic);
-        return statisticJpaRepository.save(entity).toDomain();
-    }
-
-    @Override
     public void record(Long problemId, AnswerStatus answerStatus) {
         ProblemStatisticJpaEntity entity = statisticJpaRepository
                 .findByProblemId(problemId)
-                .orElse(new ProblemStatisticJpaEntity(problemId));
-        entity.recordResult(answerStatus);
+                .orElseGet(() -> new ProblemStatisticJpaEntity(problemId));
+        ProblemStatistic domain = entity.toDomain();
+        domain.recordResult(answerStatus);
+        entity.sync(domain);
         statisticJpaRepository.save(entity);
     }
 }

@@ -4,6 +4,7 @@ import com.hoya.learning.domain.AnswerStatus;
 import com.hoya.learning.domain.ProblemAnswer;
 
 public record SubmissionResult(
+        Long problemId,
         AnswerStatus answerStatus,
         String explanation,
         ProblemAnswer answer

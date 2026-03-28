@@ -1,7 +1,6 @@
 package com.hoya.learning.repository.entity;
 
 import com.hoya.learning.common.BaseEntity;
-import com.hoya.learning.domain.AnswerStatus;
 import com.hoya.learning.domain.ProblemStatistic;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -36,13 +35,6 @@ public class ProblemStatisticJpaEntity extends BaseEntity {
         this.problemId = problemId;
         this.totalSolvedUserCount = 0;
         this.correctSolvedUserCount = 0;
-    }
-
-    public void recordResult(AnswerStatus answerStatus) {
-        this.totalSolvedUserCount++;
-        if (answerStatus.isCorrect()) {
-            this.correctSolvedUserCount++;
-        }
     }
 
     public void sync(ProblemStatistic domain) {

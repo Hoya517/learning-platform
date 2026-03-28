@@ -9,7 +9,5 @@ public interface ProblemStatisticRepository {
 
     Optional<ProblemStatistic> findByProblemId(Long problemId);
 
-    ProblemStatistic save(ProblemStatistic statistic);
-
     void record(Long problemId, AnswerStatus answerStatus);
 }

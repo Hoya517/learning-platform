@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true)
 public class SubmissionServiceImpl implements SubmissionService {
 
     private final ProblemRepository problemRepository;
@@ -27,6 +27,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final ProblemStatisticRepository statisticRepository;
 
     @Override
+    @Transactional
     public SubmissionResult submit(SubmitProblemCommand command) {
         if (submissionRepository.existsByUserIdAndProblemId(command.userId(), command.problemId())) {
             throw new BusinessException(ErrorCode.ALREADY_SUBMITTED_PROBLEM);
@@ -40,11 +41,10 @@ public class SubmissionServiceImpl implements SubmissionService {
         statisticRepository.record(problem.getId(), answerStatus);
         submissionRepository.save(command.toSubmission(answerStatus));
 
-        return new SubmissionResult(answerStatus, problem.getExplanation(), problem.getAnswer());
+        return new SubmissionResult(problem.getId(), answerStatus, problem.getExplanation(), problem.getAnswer());
     }
 
     @Override
-    @Transactional(readOnly = true)
     public ProblemSolveDetail getSolveDetail(GetSolveDetailCommand command) {
         Problem problem = problemRepository.findById(command.problemId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROBLEM_NOT_FOUND));
@@ -58,7 +58,7 @@ public class SubmissionServiceImpl implements SubmissionService {
                 .orElse(null);
 
         return new ProblemSolveDetail(
-                submission.getAnswerStatus(), problem.getExplanation(), problem.getAnswer(),
+                problem.getId(), submission.getAnswerStatus(), problem.getExplanation(), problem.getAnswer(),
                 submission.getSubmittedChoiceNumbers(), submission.getSubmittedSubjectiveAnswer(),
                 correctRate
         );
