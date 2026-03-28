@@ -90,9 +90,14 @@ GET /api/chapters/{chapterId}/problems/random?userId=1&excludeProblemId=5
 ### 5-3. ORDER BY RAND() 미사용
 MySQL의 `ORDER BY RAND()`는 데이터 양이 증가할수록 성능 저하가 큽니다.
 대신 조건을 만족하는 후보 문제 ID 목록을 먼저 조회하고, 애플리케이션 레벨에서 랜덤 선택합니다.
+`excludeProblemId` 제외도 애플리케이션 레벨에서 처리합니다. DB에서 `IS NULL OR` 조건을 쓰면 인덱스를 타지 않으며, 단원 내 문제 수가 적어 메모리 필터링 비용이 무시할 수준이기 때문입니다.
 
 ```java
-List<Long> candidateIds = problemRepository.findCandidateProblemIds(chapterId, userId, excludeProblemId);
+List<Long> candidateIds = new ArrayList<>(
+    problemRepository.findCandidateProblemIds(chapterId, userId));
+if (excludeProblemId != null) {
+    candidateIds.removeIf(id -> id.equals(excludeProblemId));
+}
 Long selectedId = candidateIds.get(random.nextInt(candidateIds.size()));
 ```
 
@@ -102,6 +107,13 @@ Long selectedId = candidateIds.get(random.nextInt(candidateIds.size()));
 
 - `total_solved_user_count`: 문제를 푼 사용자 수 누적
 - `correct_solved_user_count`: 정답(CORRECT)만 포함, 부분정답은 오답으로 간주
+
+통계 갱신은 서비스가 직접 find → recordResult → save를 수행하지 않고, `statisticRepository.record()`에 위임합니다.
+리포지토리 내부에서 SELECT 1회 후 JPA 더티체킹으로 UPDATE가 처리됩니다. `@Modifying` 벌크 쿼리는 영속성 컨텍스트를 우회하므로 사용하지 않습니다.
+
+```java
+statisticRepository.record(problem.getId(), answerStatus);
+```
 
 **동시성 이슈:** 동일 문제에 동시 제출이 몰리면 lost update 가능성이 있습니다.
 현재는 단순 누적 방식으로 구현하며, 확장 시 `@Version` 기반 낙관적 락 또는 DB atomic update 쿼리 적용을 고려합니다.

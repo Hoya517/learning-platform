@@ -28,8 +28,7 @@ public class ProblemServiceImpl implements ProblemService {
     @Override
     public RandomProblem getRandomProblem(GetRandomProblemCommand command) {
         List<Long> candidateIds = new ArrayList<>(
-                problemRepository.findCandidateProblemIds(command.chapterId(), command.userId())
-        );
+                problemRepository.findCandidateProblemIds(command.chapterId(), command.userId()));
 
         if (command.excludeProblemId() != null) {
             candidateIds.removeIf(id -> id.equals(command.excludeProblemId()));

@@ -37,11 +37,7 @@ public class SubmissionServiceImpl implements SubmissionService {
 
         AnswerStatus answerStatus = problem.grade(command.choiceNumbers(), command.subjectiveAnswer());
 
-        ProblemStatistic statistic = statisticRepository.findByProblemId(problem.getId())
-                .orElse(new ProblemStatistic(problem.getId(), 0, 0));
-        statistic.recordResult(answerStatus);
-        statisticRepository.save(statistic);
-
+        statisticRepository.record(problem.getId(), answerStatus);
         submissionRepository.save(command.toSubmission(answerStatus));
 
         return new SubmissionResult(answerStatus, problem.getExplanation(), problem.getAnswer());
