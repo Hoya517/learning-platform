@@ -12,7 +12,7 @@
 
 ---
 
-## GET /api/chapters/{chapterId}/problems/random
+## GET /api/chapters/{chapterId}/problems/random `200 OK`
 
 사용자가 풀지 않은 문제 중 1개를 랜덤으로 반환합니다.
 
@@ -54,7 +54,7 @@ X-User-Id: 1
 
 ---
 
-## POST /api/problems/{problemId}/submissions
+## POST /api/problems/{problemId}/submissions `201 Created`
 
 문제 답안을 제출합니다. 제출 즉시 채점 결과와 해설을 반환합니다.
 
@@ -99,7 +99,7 @@ Content-Type: application/json
 
 ---
 
-## GET /api/problems/{problemId}/submission
+## GET /api/problems/{problemId}/submission `200 OK`
 
 이전에 제출한 풀이 내역을 조회합니다.
 
