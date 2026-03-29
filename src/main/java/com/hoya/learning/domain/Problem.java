@@ -58,7 +58,7 @@ public class Problem {
 
     public AnswerStatus grade(List<Integer> choiceNumbers, String subjectiveAnswer) {
         if (type.isMultipleChoice()) {
-            if (choiceNumbers == null) {
+            if (choiceNumbers == null || subjectiveAnswer != null) {
                 throw new BusinessException(ErrorCode.INVALID_ANSWER_TYPE);
             }
             if (!multipleAnswer && choiceNumbers.size() > 1) {
@@ -67,7 +67,7 @@ public class Problem {
             return gradeChoice(choiceNumbers);
         }
         if (type.isSubjective()) {
-            if (subjectiveAnswer == null) {
+            if (subjectiveAnswer == null || choiceNumbers != null) {
                 throw new BusinessException(ErrorCode.INVALID_ANSWER_TYPE);
             }
             return gradeSubjective(subjectiveAnswer);

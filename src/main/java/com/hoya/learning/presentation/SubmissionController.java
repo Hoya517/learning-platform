@@ -11,8 +11,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Submission", description = "문제 제출 및 풀이 이력 API")
 @RequiredArgsConstructor
+@Validated
 @RestController
 @RequestMapping("/api")
 public class SubmissionController {
@@ -34,8 +37,8 @@ public class SubmissionController {
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/problems/{problemId}/submissions")
     public ApiResponse<SubmitProblemResponse> submit(
-            @Parameter(description = "사용자 ID", in = io.swagger.v3.oas.annotations.enums.ParameterIn.HEADER) @RequestHeader("X-User-Id") Long userId,
-            @Parameter(description = "문제 ID") @PathVariable Long problemId,
+            @Parameter(description = "사용자 ID", in = io.swagger.v3.oas.annotations.enums.ParameterIn.HEADER) @Positive(message = "userId는 양수여야 합니다.") @RequestHeader("X-User-Id") Long userId,
+            @Parameter(description = "문제 ID") @Positive(message = "problemId는 양수여야 합니다.") @PathVariable Long problemId,
             @Valid @RequestBody SubmitProblemRequest request
     ) {
         SubmitProblemCommand command = new SubmitProblemCommand(
@@ -46,8 +49,8 @@ public class SubmissionController {
     @Operation(summary = "풀이 상세 조회", description = "사용자의 특정 문제 풀이 이력을 조회합니다.")
     @GetMapping("/problems/{problemId}/submission")
     public ApiResponse<SolveDetailResponse> getSolveDetail(
-            @Parameter(description = "사용자 ID", in = io.swagger.v3.oas.annotations.enums.ParameterIn.HEADER) @RequestHeader("X-User-Id") Long userId,
-            @Parameter(description = "문제 ID") @PathVariable Long problemId
+            @Parameter(description = "사용자 ID", in = io.swagger.v3.oas.annotations.enums.ParameterIn.HEADER) @Positive(message = "userId는 양수여야 합니다.") @RequestHeader("X-User-Id") Long userId,
+            @Parameter(description = "문제 ID") @Positive(message = "problemId는 양수여야 합니다.") @PathVariable Long problemId
     ) {
         GetSolveDetailCommand command = new GetSolveDetailCommand(userId, problemId);
         return ApiResponse.of(SolveDetailResponse.from(submissionService.getSolveDetail(command)));

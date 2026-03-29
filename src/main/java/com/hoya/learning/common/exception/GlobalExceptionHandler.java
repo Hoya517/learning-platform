@@ -1,6 +1,7 @@
 package com.hoya.learning.common.exception;
 
 import com.hoya.learning.common.response.ErrorResponse;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .findFirst()
+                .orElse("입력값이 올바르지 않습니다.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("INVALID_INPUT", message));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .map(cv -> cv.getMessage())
                 .findFirst()
                 .orElse("입력값이 올바르지 않습니다.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)

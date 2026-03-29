@@ -1,8 +1,13 @@
 # 수동 테스트 케이스 (Swagger)
 
-서버 기동 시 `data.sql`이 자동으로 로딩됩니다.
+Docker 최초 기동 시 `init.sql`이 자동으로 실행되어 스키마와 초기 데이터가 세팅됩니다.
+데이터를 초기화하려면 볼륨을 삭제 후 재기동합니다:
+
+```bash
+docker-compose down -v && docker-compose up --build
+```
+
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
-- H2 Console: `http://localhost:8080/h2-console`
 
 ---
 

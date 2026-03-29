@@ -31,18 +31,20 @@
 
 ```
 src/main/java/com/hoya/learning
-├── common
-│   ├── config          # JpaConfig, SwaggerConfig
-│   ├── exception       # BusinessException, ErrorCode, GlobalExceptionHandler
-│   └── response        # ApiResponse<T>, ErrorResponse
-├── domain              # Problem, ProblemType, Choice, SubjectiveAnswer,
-│                       # ProblemStatistic, ProblemSubmission, AnswerStatus
-├── repository          # ProblemRepository, ProblemStatisticRepository,
-│                       # ProblemSubmissionRepository
-├── service             # ProblemService, SubmissionService
-│   ├── command         # GetRandomProblemCommand, SubmitProblemCommand, GetSolveDetailCommand
-│   └── result          # RandomProblem, SubmissionResult, ProblemSolveDetail, ProblemAnswer
-└── presentation        # ProblemController, SubmissionController
+├── common                  # 레이어 공통 인프라 (BaseEntity, RandomHolder 포함)
+│   ├── config              # JPA Auditing, Swagger UI 설정
+│   ├── exception           # BusinessException, ErrorCode, 전역 예외 핸들러
+│   └── response            # ApiResponse / ErrorResponse 공통 응답 래퍼
+├── domain                  # 핵심 도메인 객체 — 엔티티, 열거형, 채점 로직
+├── repository              # 도메인 리포지토리 인터페이스 + 구현체
+│   ├── entity              # JPA 영속성 엔티티 (도메인 객체와 분리)
+│   └── jpa                 # Spring Data JPA 인터페이스
+├── service                 # 비즈니스 유스케이스 (인터페이스 + 구현체)
+│   ├── command             # 서비스 호출 입력 파라미터 객체
+│   └── result              # 서비스 호출 출력 결과 객체
+└── presentation            # REST 컨트롤러
+    ├── request             # 요청 DTO
+    └── response            # 응답 DTO
 ```
 
 ---
@@ -66,94 +68,45 @@ src/main/java/com/hoya/learning
 
 ---
 
-## 5. 주요 설계 결정 사항
+## 5. 주요 설계 결정
 
 ### 5-1. ProblemSubmission에 chapter_id 미포함
-`Problem`이 이미 `Chapter`를 참조하므로 `ProblemSubmission`에 `chapter_id`를 중복 저장하지 않습니다.
-chapter 기준 조회가 필요한 경우 `problem` JOIN으로 처리합니다.
-
-```sql
-SELECT ps.*
-FROM problem_submissions ps
-JOIN problems p ON p.id = ps.problem_id
-WHERE ps.user_id = ?
-  AND p.chapter_id = ?
-```
+`Problem`이 이미 `chapter_id`를 가지므로 중복 저장하지 않습니다.
+chapter 기준 조회는 `problem` JOIN으로 처리합니다.
 
 ### 5-2. 스킵 stateless 처리
-직전 스킵 문제 제외를 서버 상태로 관리하지 않고, 클라이언트가 `excludeProblemId` 파라미터로 전달합니다.
+스킵 상태를 서버에서 관리하지 않고, 클라이언트가 `excludeProblemId` 쿼리 파라미터로 직접 전달합니다.
+별도 스킵 API와 상태 저장 테이블이 불필요합니다.
 
-```
-GET /api/chapters/{chapterId}/problems/random?excludeProblemId=5
-X-User-Id: 1
-```
+### 5-3. 랜덤 선택 — ORDER BY RAND() 미사용
+후보 ID 목록을 먼저 조회하고 애플리케이션 레벨에서 랜덤 선택합니다.
+`ORDER BY RAND()`는 데이터 증가 시 성능이 급격히 저하되며, 단원 내 문제 수가 적어 메모리 필터링 비용이 무시할 수준입니다.
 
-별도 스킵 API 및 스킵 상태 저장 테이블이 불필요합니다.
+### 5-4. 정답률 — 집계 테이블 분리
+제출 시점에 `problem_statistics` 테이블을 갱신해 조회 성능을 확보합니다.
+조회마다 `problem_submissions`를 집계하면 데이터 증가 시 성능이 저하되기 때문입니다.
+> **동시성 주의:** 동일 문제 동시 제출 시 lost update 가능성 있음. 확장 시 낙관적 락 또는 atomic update 적용 고려.
 
-### 5-3. ORDER BY RAND() 미사용
-MySQL의 `ORDER BY RAND()`는 데이터 양이 증가할수록 성능 저하가 큽니다.
-대신 조건을 만족하는 후보 문제 ID 목록을 먼저 조회하고, 애플리케이션 레벨에서 랜덤 선택합니다.
-`excludeProblemId` 제외도 애플리케이션 레벨에서 처리합니다. DB에서 `IS NULL OR` 조건을 쓰면 인덱스를 타지 않으며, 단원 내 문제 수가 적어 메모리 필터링 비용이 무시할 수준이기 때문입니다.
-
-```java
-List<Long> candidateIds = new ArrayList<>(
-    problemRepository.findCandidateProblemIds(chapterId, userId));
-if (excludeProblemId != null) {
-    candidateIds.removeIf(id -> id.equals(excludeProblemId));
-}
-Long selectedId = candidateIds.get(random.nextInt(candidateIds.size()));
-```
-
-### 5-4. 정답률 집계 테이블 분리
-조회 시마다 `problem_submissions`를 집계하면 데이터 증가 시 성능 저하가 발생합니다.
-제출 시점에 `problem_statistics` 테이블을 갱신(누적 카운트)하는 방식으로 조회 성능을 확보했습니다.
-
-- `total_solved_user_count`: 문제를 푼 사용자 수 누적
-- `correct_solved_user_count`: 정답(CORRECT)만 포함, 부분정답은 오답으로 간주
-
-통계 갱신은 서비스가 직접 find → recordResult → save를 수행하지 않고, `statisticRepository.record()`에 위임합니다.
-리포지토리 내부에서 SELECT 1회 후 도메인 객체에 로직을 위임하고 명시적 `save()`로 반영합니다.
-
-```java
-// ProblemStatisticRepositoryImpl.record() 흐름
-ProblemStatistic domain = entity.toDomain();
-domain.recordResult(answerStatus);  // 도메인이 로직 보유
-entity.sync(domain);
-statisticJpaRepository.save(entity);
-```
-
-`@Modifying` 벌크 쿼리는 영속성 컨텍스트를 우회하므로 사용하지 않습니다.
-
-```java
-statisticRepository.record(problem.getId(), answerStatus);
-```
-
-**동시성 이슈:** 동일 문제에 동시 제출이 몰리면 lost update 가능성이 있습니다.
-현재는 단순 누적 방식으로 구현하며, 확장 시 `@Version` 기반 낙관적 락 또는 DB atomic update 쿼리 적용을 고려합니다.
-
-### 5-5. 채점 책임 (Tell, Don't Ask)
-채점 로직은 `Problem` 도메인 메서드가 직접 담당합니다.
-서비스 계층이 도메인에서 데이터를 꺼내 판단하지 않고, 도메인에 채점을 위임합니다.
-
-```java
-AnswerStatus status = problem.grade(command.choiceNumbers(), command.subjectiveAnswer());
-```
-
-`grade()` 내부에서 문제 타입에 따라 `gradeChoice()` 또는 `gradeSubjective()`로 분기합니다. 서비스는 타입을 직접 판단하지 않습니다.
+### 5-5. 채점 책임 — Tell, Don't Ask
+채점 로직은 `Problem.grade()`에 위임합니다. 서비스는 문제 타입을 직접 판단하지 않습니다.
 
 ### 5-6. 부분정답 정책
-- 객관식: 정답 선택지를 1개라도 포함하면 부분정답 (`[1,2]` 정답 시 `[1,3]` 제출 → 부분정답)
-- 주관식: 부분정답 기준이 불명확하므로 정답/오답만 판정
-- 정답률 계산에서 부분정답은 오답으로 간주
+- 객관식: 정답 선택지 1개라도 포함 시 PARTIAL
+- 주관식: 부분정답 없이 CORRECT / WRONG만 판정
+- 정답률 계산에서 PARTIAL은 오답으로 간주
 
-### 5-7. 중복 제출 방지
-사용자당 동일 문제는 1회만 제출 가능합니다.
-`existsByUserIdAndProblemId()` 선행 체크 + `problem_submissions(user_id, problem_id)` unique 제약의 이중 방어로 보장합니다.
-
-동시 요청으로 선행 체크를 통과하더라도 DB unique 제약이 `DataIntegrityViolationException`을 발생시키며, `GlobalExceptionHandler`에서 `ALREADY_SUBMITTED_PROBLEM`(409)으로 변환합니다.
+### 5-7. 중복 제출 방지 — 이중 방어
+`existsByUserIdAndProblemId()` 선행 체크 + DB unique 제약으로 이중 방어합니다.
+동시 요청이 선행 체크를 통과해도 `DataIntegrityViolationException`을 409로 변환합니다.
 
 ### 5-8. userId 인증 구조
-`userId`를 `X-User-Id` 헤더로 전달받습니다. JWT 도입 시 인증 필터에서 토큰을 파싱해 동일 헤더로 주입하는 구조로 교체하면 됩니다. 현재는 클라이언트가 직접 헤더를 설정하므로 사칭이 가능하며, 실제 서비스에서는 인증 미들웨어를 통해 서버가 주입해야 합니다.
+`X-User-Id` 헤더로 전달받습니다. JWT 도입 시 인증 필터에서 동일 헤더로 주입하는 구조로 교체하면 됩니다.
+현재는 클라이언트가 직접 설정하므로 사칭 가능 — 실 서비스에서는 서버가 주입해야 합니다.
+
+### 5-9. 주관식 정답 비교 정책
+- 대소문자 무시 (`toLowerCase`)
+- 앞뒤 공백 무시 (`trim`)
+- 주관식 문제 제출 시 `choiceNumbers`가 함께 오면 400 (`INVALID_ANSWER_TYPE`) — 타입 혼용 요청은 클라이언트 버그로 간주
 
 ---
 
@@ -161,11 +114,11 @@ AnswerStatus status = problem.grade(command.choiceNumbers(), command.subjectiveA
 
 모든 API는 `X-User-Id` 헤더로 사용자 ID를 전달합니다.
 
-| Method | URL | 설명 |
-|--------|-----|------|
-| GET | `/api/chapters/{chapterId}/problems/random?excludeProblemId=` | 랜덤 문제 조회 |
-| POST | `/api/problems/{problemId}/submissions` | 문제 제출 |
-| GET | `/api/problems/{problemId}/submission` | 풀이 상세 조회 |
+| Method | URL | 상태코드 | 설명 |
+|--------|-----|----------|------|
+| GET | `/api/chapters/{chapterId}/problems/random?excludeProblemId=` | 200 | 랜덤 문제 조회 |
+| POST | `/api/problems/{problemId}/submissions` | 201 | 문제 제출 |
+| GET | `/api/problems/{problemId}/submission` | 200 | 풀이 상세 조회 |
 
 ---
 
@@ -225,9 +178,20 @@ CREATE INDEX idx_submission_choice_submission ON submission_choices(submission_i
 - 서비스 단위 테스트: InMemory Repository로 Spring 없이 검증
 
 ### 통합 테스트 (H2 + @SpringBootTest)
+
+> MySQL 대신 H2를 사용하는 이유:
+> 테스트 환경에서 MySQL 컨테이너를 띄우면 CI 속도가 느려지고 환경 의존성이 생깁니다.
+> 이 프로젝트는 `ORDER BY RAND()` 같은 MySQL 전용 문법을 사용하지 않고, 네이티브 쿼리도 없으므로
+> H2의 MySQL 호환 모드(`MODE=MySQL`)로 동일한 동작을 보장할 수 있습니다.
+> Testcontainers 도입 시 실 DB 환경에서의 검증도 가능하지만, 현재 규모에서는 H2로 충분합니다.
+
 - 랜덤 문제 조회: 안 푼 문제만, excludeProblemId 제외, 후보 없을 때 예외
 - 문제 제출: 결과 반환, DB 저장, 통계 갱신, 중복 제출 예외
 - 풀이 상세 조회: 답안/정답/정답률 모두 반환
+
+### 수동 테스트
+
+Swagger UI를 통한 수동 테스트 시나리오는 [docs/manual-test-cases.md](docs/manual-test-cases.md)를 참고합니다.
 
 ---
 

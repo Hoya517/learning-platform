@@ -2,22 +2,14 @@ spring:
   application:
     name: learning-platform
   datasource:
-    url: jdbc:h2:mem:learning;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/learning_platform?serverTimezone=UTC&characterEncoding=UTF-8}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME:learning}
+    password: ${DB_PASSWORD:learning}
   jpa:
     hibernate:
-      ddl-auto: create-drop
-    defer-datasource-initialization: true
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-  sql:
-    init:
-      mode: always
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
