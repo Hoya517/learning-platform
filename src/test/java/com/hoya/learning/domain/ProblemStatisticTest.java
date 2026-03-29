@@ -1,6 +1,5 @@
 package com.hoya.learning.domain;
 
-import com.hoya.learning.domain.AnswerStatus;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,5 +56,19 @@ class ProblemStatisticTest {
         ProblemStatistic statistic = new ProblemStatistic(1L, 30, 20);
 
         assertThat(statistic.getCorrectRate()).isEqualTo(67.0);
+    }
+
+    @Test
+    void 정답이_아무도_없으면_정답률은_0이다() {
+        ProblemStatistic statistic = new ProblemStatistic(1L, 30, 0);
+
+        assertThat(statistic.getCorrectRate()).isEqualTo(0.0);
+    }
+
+    @Test
+    void 풀이_인원이_정확히_30명이면_정답률을_반환한다() {
+        ProblemStatistic statistic = new ProblemStatistic(1L, 30, 15);
+
+        assertThat(statistic.getCorrectRate()).isEqualTo(50.0);
     }
 }

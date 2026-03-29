@@ -102,6 +102,18 @@ class ProblemTest {
     }
 
     @Test
+    void grade_단일정답_문제에_복수_선택지를_제출하면_INVALID_ANSWER_TYPE이다() {
+        Problem problem = multipleChoiceProblem(List.of(
+                new Choice(1L, 1, "지문1", true),
+                new Choice(2L, 2, "지문2", false)
+        ));
+
+        assertThatThrownBy(() -> problem.grade(List.of(1, 2), null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_ANSWER_TYPE.getMessage());
+    }
+
+    @Test
     void grade_객관식은_gradeChoice에_위임한다() {
         Problem problem = multipleChoiceProblem(List.of(
                 new Choice(1L, 1, "지문1", true),

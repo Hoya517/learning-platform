@@ -37,6 +37,17 @@ class SubmissionControllerTest {
                 List.of());
     }
 
+    private Problem 복수정답_객관식_문제() {
+        return new Problem(3L, 1L, "컴파일 에러가 발생하는 것을 모두 고르시오.", "해설",
+                ProblemType.MULTIPLE_CHOICE, true,
+                List.of(
+                        new Choice(1L, 1, "지문1", true),
+                        new Choice(2L, 2, "지문2", false),
+                        new Choice(3L, 3, "지문3", true)
+                ),
+                List.of());
+    }
+
     private Problem 주관식_문제() {
         return new Problem(2L, 1L, "대한민국의 수도는?", "대한민국의 수도는 서울입니다.",
                 ProblemType.SUBJECTIVE, false,
@@ -59,10 +70,10 @@ class SubmissionControllerTest {
     @Test
     void 객관식_부분정답_제출_시_PARTIAL을_반환한다() {
         TestContainer tc = new TestContainer(bound -> 0);
-        tc.problemRepository.save(객관식_문제());
+        tc.problemRepository.save(복수정답_객관식_문제());
 
         ApiResponse<SubmitProblemResponse> response = tc.submissionController.submit(
-                USER_ID, 1L, new SubmitProblemRequest(List.of(1, 3), null));
+                USER_ID, 3L, new SubmitProblemRequest(List.of(1, 2), null));
 
         assertThat(response.data().answerStatus()).isEqualTo(AnswerStatus.PARTIAL);
     }

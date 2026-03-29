@@ -61,6 +61,9 @@ public class Problem {
             if (choiceNumbers == null) {
                 throw new BusinessException(ErrorCode.INVALID_ANSWER_TYPE);
             }
+            if (!multipleAnswer && choiceNumbers.size() > 1) {
+                throw new BusinessException(ErrorCode.INVALID_ANSWER_TYPE);
+            }
             return gradeChoice(choiceNumbers);
         }
         if (type.isSubjective()) {

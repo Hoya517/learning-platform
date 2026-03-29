@@ -41,11 +41,20 @@ class ProblemServiceTest {
     void excludeProblemId에_해당하는_문제는_제외된다() {
         problemRepository.addCandidate(1L, 1L, problem(10L));
         problemRepository.addCandidate(1L, 1L, problem(20L));
-        service = new ProblemServiceImpl(problemRepository, statisticRepository, bound -> bound - 1);
+        ProblemService serviceWithLastIndex = new ProblemServiceImpl(problemRepository, statisticRepository, bound -> bound - 1);
 
-        RandomProblem result = service.getRandomProblem(new GetRandomProblemCommand(1L, 1L, 20L));
+        RandomProblem result = serviceWithLastIndex.getRandomProblem(new GetRandomProblemCommand(1L, 1L, 20L));
 
         assertThat(result.problemId()).isEqualTo(10L);
+    }
+
+    @Test
+    void excludeProblemId가_유일한_후보이면_NO_AVAILABLE_PROBLEM_예외가_발생한다() {
+        problemRepository.addCandidate(1L, 1L, problem(10L));
+
+        assertThatThrownBy(() -> service.getRandomProblem(new GetRandomProblemCommand(1L, 1L, 10L)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.NO_AVAILABLE_PROBLEM.getMessage());
     }
 
     @Test
